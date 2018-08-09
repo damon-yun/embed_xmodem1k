@@ -1,40 +1,60 @@
-/*********************************************Copyright (c)***********************************************
-**                                Guangzhou ZLG MCU Technology Co., Ltd.
-**
-**                                        http://www.zlgmcu.com
-**
-**      广州周立功单片机科技有限公司所提供的所有服务内容旨在协助客户加速产品的研发进度，在服务过程中所提供
-**  的任何程序、文档、测试结果、方案、支持等资料和信息，都仅供参考，客户有权不使用或自行参考修改，本公司不
-**  提供任何的完整性、可靠性等保证，若在客户使用过程中因任何原因造成的特别的、偶然的或间接的损失，本公司不
-**  承担任何责任。
-**                                                                          ——广州周立功单片机科技有限公司
-**
-**--------------File Info---------------------------------------------------------------------------------
-** File name:           XMODEM1K.c
-** Last modified Date:  2012-9-10
-** Last Version:        V1.0
-** Descriptions:        The XMODEM1K Communication Protocol
-**
-**--------------------------------------------------------------------------------------------------------
-** Created by:          CaoHua
-** Created date:        2012-9-10
-** Version:             V1.00
-** Descriptions:        整理应用程序
-**
-**--------------------------------------------------------------------------------------------------------
-** Modified by:         
-** Modified date:       
-** Version:             
-** Descriptions:        
-**
-**--------------------------------------------------------------------------------------------------------
-** Modified by:        
-** Modified date:      
-** Version:            
-** Descriptions:       
-**
-** Rechecked by:
-*********************************************************************************************************/
+/*******************************************************************************
+* -----------------------------------------------------------------------------
+*									     									 
+* xmodem1k.c - a simple xmodem 1k machine which support xmodem & xmodem 1K		     			 
+*									     
+* -----------------------------------------------------------------------------
+* Copyright (C) Damon Zhang
+* All rights reserved.
+*
+* Author : Damon Zhang
+* Website: https://damon-yun.github.io/blog.github.io/
+* E-mail : damoncheung@foxmail.com
+* -----------------------------------------------------------------------------
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* Code is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+* or GNU Library General Public License, as applicable, for more details.
+*
+* Redistribution and use in source and binary forms, with or without modification,
+* are permitted provided that the following conditions are met:
+*
+* o Redistributions of source code must retain the above copyright notice, this list
+*   of conditions and the following disclaimer.
+*
+* o Redistributions in binary form must reproduce the above copyright notice, this
+*   list of conditions and the following disclaimer in the documentation and/or
+*   other materials provided with the distribution.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+*******************************************************************************/
+
+/**
+ * \file
+ * \brief xmodem1K
+ * 
+ * \internal
+ * \par Modification History
+ * - 1.00 18-08-05  damon.zhang, first implementation.
+ * \endinternal
+ */
+
 /*********************************************************************************************************
  头文件
 *********************************************************************************************************/
@@ -142,6 +162,7 @@ uint8_t xmodem1k_client (pfn_data_handle_t    pfn_data_handle,
                          uint32_t             uShortDly, 
                          uint32_t             uLongDly)
 {
+    uint32_t u32IdleTime  = 0;
     uint32_t u32ByteCnt   = 0;                                          /* 位计数器                     */
     uint8_t  u8TimeoutCnt = 0;                                          /* 超时次数                     */
     uint8_t  u8DataerrCnt = 0;                                          /* 数据错误次数                 */
@@ -152,7 +173,7 @@ uint8_t xmodem1k_client (pfn_data_handle_t    pfn_data_handle,
     uint16_t u16PktLen;                                                 /* 包中有效数据的长度           */
     uint8_t  u8Message;
     
-    uint32_t temp = 0;
+    //uint32_t temp = 0;
     
     p_fun->pfn_time_set(0);
     PRINTF("mcu ready to recv data...\r\n");
@@ -161,8 +182,8 @@ uint8_t xmodem1k_client (pfn_data_handle_t    pfn_data_handle,
         switch (u8STATE) {
 
         case STAT_IDLE_C:                                               /* 轮询发C状态                  */
-            if (p_fun->pfn_time_get() >= uLongDly) {
-                u8STATE = STAT_END;                                     /* 等待开始超时，跳到结束状态   */
+            if (u32IdleTime >= uLongDly) {
+                u8STATE = STAT_CAN;                                     /* 等待开始超时，跳到结束状态   */
             } else {
                 u8Data = POLL;
                 do {
@@ -180,6 +201,7 @@ uint8_t xmodem1k_client (pfn_data_handle_t    pfn_data_handle,
             } else {
                 if (p_fun->pfn_time_get() >= uShortDly) {
                     u8STATE = STAT_IDLE_C;                              /* 轮询读数超时，跳回轮询发C    */
+                    u32IdleTime += uShortDly;
                 }
             }
             break;
@@ -260,7 +282,7 @@ uint8_t xmodem1k_client (pfn_data_handle_t    pfn_data_handle,
                                     *((uint8_t *)puData + u16PktLen + 1);
 
             if ((p_fun->pfn_crc_verify) == NULL) {
-                temp = __crc16_verify((uint8_t *)puData, u16PktLen, 0);
+                //temp = __crc16_verify((uint8_t *)puData, u16PktLen, 0);
                 if ((__crc16_verify((uint8_t *)puData, u16PktLen, 0)) != u16CRCTemp) {
                     u8DataerrCnt++;
                     u8STATE = STAT_NAK;                                     /* CRC检查                      */
